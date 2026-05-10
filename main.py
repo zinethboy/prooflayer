@@ -1,6 +1,6 @@
 """
 ProofLayer Backend API
-FastAPI + SQLite + Static file serving + Blockchain anchoring
+FastAPI + SQLite + Static file serving + Payments + Security
 """
 
 import os
@@ -11,15 +11,17 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from dataclasses import dataclass, asdict
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 import sqlite3
 import numpy as np
 from sklearn.ensemble import IsolationForest
 import joblib
+import requests
 
 
 # ─── CONFIG ──────────────────────────────────────────────────────────
@@ -27,17 +29,38 @@ import joblib
 DB_PATH = "prooflayer.db"
 MODEL_PATH = "keystroke_model.pkl"
 
-app = FastAPI(title="ProofLayer API", version="0.1.0")
+# Payment configs from environment variables (NEVER hardcode)
+PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
+PAYPAL_SECRET = os.getenv("PAYPAL_SECRET", "")
+PAYPAL_API = "https://api-m.sandbox.paypal.com"  # sandbox for testing
+# Change to "https://api-m.paypal.com" for live
 
+FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY", "")
+FLW_API = "https://api.flutterwave.com/v3"
+
+# Pricing plans
+PLANS = {
+    "starter": {"price": 0, "verifications": 1000, "name": "Starter"},
+    "pro": {"price": 49, "verifications": 10000, "name": "Pro"},
+    "enterprise": {"price": 499, "verifications": -1, "name": "Enterprise"}
+}
+
+app = FastAPI(title="ProofLayer API", version="0.2.0")
+
+# Restrict CORS to your actual domains only
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://prooflayer.up.railway.app",
+        "https://zinethboy.github.io",
+        # Add client domains here when they pay
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Serve static files (THIS IS THE FIX)
+# Serve static files
 app.mount("/static", StaticFiles(directory="."), name="static")
 
 @app.get("/")
@@ -50,6 +73,8 @@ def read_root():
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    
+    # Sessions table
     c.execute('''
         CREATE TABLE IF NOT EXISTS sessions (
             id TEXT PRIMARY KEY,
@@ -62,10 +87,77 @@ def init_db():
             verified INTEGER DEFAULT 0
         )
     ''')
+    
+    # Customers table (for payments)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS customers (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE,
+            name TEXT,
+            plan TEXT DEFAULT 'starter',
+            api_key TEXT UNIQUE,
+            payment_method TEXT,
+            subscription_id TEXT,
+            created_at REAL,
+            verifications_used INTEGER DEFAULT 0,
+            verifications_limit INTEGER DEFAULT 1000,
+            active INTEGER DEFAULT 1
+        )
+    ''')
+    
+    # Payments table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS payments (
+            id TEXT PRIMARY KEY,
+            customer_id TEXT,
+            amount REAL,
+            currency TEXT,
+            status TEXT,
+            provider TEXT,
+            provider_ref TEXT,
+            created_at REAL
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
 init_db()
+
+
+# ─── API KEY AUTH ─────────────────────────────────────────────────────
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+def verify_api_key(api_key: str = Security(api_key_header)):
+    if not api_key:
+        raise HTTPException(status_code=403, detail="API key required. Get one at https://prooflayer.up.railway.app")
+    
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT id, active, plan, verifications_used, verifications_limit FROM customers WHERE api_key = ?", (api_key,))
+    row = c.fetchone()
+    conn.close()
+    
+    if not row:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+    
+    customer_id, active, plan, used, limit = row
+    
+    if not active:
+        raise HTTPException(status_code=403, detail="Account not active. Please complete payment.")
+    
+    if plan != "enterprise" and used >= limit:
+        raise HTTPException(status_code=403, detail="Verification limit reached. Upgrade your plan.")
+    
+    return {"api_key": api_key, "customer_id": customer_id, "plan": plan}
+
+def track_usage(api_key: str):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("UPDATE customers SET verifications_used = verifications_used + 1 WHERE api_key = ?", (api_key,))
+    conn.commit()
+    conn.close()
 
 
 # ─── MODELS ───────────────────────────────────────────────────────────
@@ -87,6 +179,16 @@ class VerificationResult(BaseModel):
     proof_hash: str
     tx_hash: Optional[str]
     timestamp: str
+
+class CreatePaymentRequest(BaseModel):
+    plan: str
+    email: str
+    name: str
+    return_url: str
+    cancel_url: str
+
+class VerifyPaymentRequest(BaseModel):
+    order_id: str
 
 
 # ─── KEYSTROKE FEATURE EXTRACTION ────────────────────────────────────
@@ -260,7 +362,14 @@ def anchor_to_chain(proof_hash: str) -> Optional[str]:
         return None
 
 
-# ─── API ENDPOINTS ────────────────────────────────────────────────────
+# ─── API KEY UTILS ───────────────────────────────────────────────────
+
+def generate_api_key(email: str) -> str:
+    data = f"{email}{time.time()}{os.urandom(16)}"
+    return hashlib.sha256(data.encode()).hexdigest()[:32]
+
+
+# ─── CORE API ENDPOINTS ───────────────────────────────────────────────
 
 @app.post("/api/v1/session/start")
 def start_session():
@@ -281,7 +390,7 @@ def start_session():
 
 
 @app.post("/api/v1/session/{session_id}/keystrokes")
-def submit_keystrokes(session_id: str, data: KeystrokeSession):
+def submit_keystrokes(session_id: str, data: KeystrokeSession, auth: dict = Security(verify_api_key)):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT id FROM sessions WHERE id = ?", (session_id,))
@@ -324,6 +433,9 @@ def submit_keystrokes(session_id: str, data: KeystrokeSession):
     ))
     conn.commit()
     conn.close()
+    
+    # Track usage
+    track_usage(auth["api_key"])
     
     if is_human_score > 0.75:
         confidence = "high"
@@ -408,112 +520,10 @@ def get_stats():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.1.0"}
+    return {"status": "ok", "version": "0.2.0"}
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-    """
-PAYMENT MODULE — Add to main.py
-PayPal + Flutterwave integration
-"""
-
-import os
-from fastapi import FastAPI, HTTPException, Request
-from pydantic import BaseModel
-import requests
-import hashlib
-import time
-
-# ─── PAYPAL CONFIG ─────────────────────────────────────
-
-PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
-PAYPAL_SECRET = os.getenv("PAYPAL_SECRET", "")
-PAYPAL_API = "https://api-m.sandbox.paypal.com"  # sandbox for testing
-# Change to "https://api-m.paypal.com" for live
-
-# ─── FLUTTERWAVE CONFIG ─────────────────────────────
-
-FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY", "")
-FLW_API = "https://api.flutterwave.com/v3"
-
-# ─── PRICING PLANS ────────────────────────────────────
-
-PLANS = {
-    "starter": {"price": 0, "verifications": 1000, "name": "Starter"},
-    "pro": {"price": 49, "verifications": 10000, "name": "Pro"},
-    "enterprise": {"price": 499, "verifications": -1, "name": "Enterprise"}
-}
-
-# ─── DATABASE UPDATE ──────────────────────────────────
-
-def init_payments_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    
-    # Customers table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS customers (
-            id TEXT PRIMARY KEY,
-            email TEXT UNIQUE,
-            name TEXT,
-            plan TEXT DEFAULT 'starter',
-            api_key TEXT UNIQUE,
-            payment_method TEXT,
-            subscription_id TEXT,
-            created_at REAL,
-            verifications_used INTEGER DEFAULT 0,
-            verifications_limit INTEGER DEFAULT 1000,
-            active INTEGER DEFAULT 1
-        )
-    ''')
-    
-    # Payments table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS payments (
-            id TEXT PRIMARY KEY,
-            customer_id TEXT,
-            amount REAL,
-            currency TEXT,
-            status TEXT,
-            provider TEXT,
-            provider_ref TEXT,
-            created_at REAL
-        )
-    ''')
-    
-    conn.commit()
-    conn.close()
-
-init_payments_db()
-
-# ─── MODELS ─────────────────────────────────────────
-
-class CreatePaymentRequest(BaseModel):
-    plan: str  # "pro" or "enterprise"
-    email: str
-    name: str
-    return_url: str
-    cancel_url: str
-
-class VerifyPaymentRequest(BaseModel):
-    order_id: str
-
-class CustomerResponse(BaseModel):
-    email: str
-    plan: str
-    api_key: str
-    verifications_used: int
-    verifications_limit: int
-
-# ─── API KEY GENERATION ──────────────────────────────
-
-def generate_api_key(email: str) -> str:
-    data = f"{email}{time.time()}{os.urandom(16)}"
-    return hashlib.sha256(data.encode()).hexdigest()[:32]
-
-# ─── PAYPAL ENDPOINTS ───────────────────────────────
+# ─── PAYMENT ENDPOINTS ────────────────────────────────────────────────
 
 @app.post("/api/v1/payment/create")
 def create_paypal_payment(data: CreatePaymentRequest):
@@ -523,6 +533,9 @@ def create_paypal_payment(data: CreatePaymentRequest):
         raise HTTPException(status_code=400, detail="Invalid plan")
     
     plan = PLANS[data.plan]
+    
+    if not PAYPAL_CLIENT_ID or not PAYPAL_SECRET:
+        raise HTTPException(status_code=500, detail="PayPal not configured. Add PAYPAL_CLIENT_ID and PAYPAL_SECRET to environment variables.")
     
     # Get PayPal access token
     auth = requests.post(
@@ -598,9 +611,13 @@ def create_paypal_payment(data: CreatePaymentRequest):
         "plan": data.plan
     }
 
+
 @app.post("/api/v1/payment/capture")
 def capture_paypal_payment(data: VerifyPaymentRequest):
     """Capture payment after user approves"""
+    
+    if not PAYPAL_CLIENT_ID or not PAYPAL_SECRET:
+        raise HTTPException(status_code=500, detail="PayPal not configured")
     
     # Get access token
     auth = requests.post(
@@ -677,7 +694,6 @@ def capture_paypal_payment(data: VerifyPaymentRequest):
     conn.close()
     raise HTTPException(status_code=400, detail=f"Payment status: {status}")
 
-# ─── CUSTOMER DASHBOARD ─────────────────────────────
 
 @app.get("/api/v1/customer/{api_key}")
 def get_customer(api_key: str):
@@ -704,52 +720,15 @@ def get_customer(api_key: str):
         "created_at": datetime.fromtimestamp(row[5]).isoformat() if row[5] else None
     }
 
-# ─── USAGE TRACKING (Add to your keystroke endpoint) ─
-
-def track_verification(api_key: str) -> bool:
-    """Check if customer has verifications left"""
-    
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    
-    c.execute('''
-        SELECT verifications_used, verifications_limit, active, plan
-        FROM customers WHERE api_key = ?
-    ''', (api_key,))
-    row = c.fetchone()
-    
-    if not row:
-        conn.close()
-        return False  # Invalid key
-    
-    used, limit, active, plan = row
-    
-    if not active:
-        conn.close()
-        return False  # Not paid
-    
-    if plan != "enterprise" and used >= limit:
-        conn.close()
-        return False  # Limit reached
-    
-    # Increment usage
-    c.execute('''
-        UPDATE customers SET verifications_used = verifications_used + 1
-        WHERE api_key = ?
-    ''', (api_key,))
-    
-    conn.commit()
-    conn.close()
-    return True
-
-# ─── PAYPAL WEBHOOK (for subscription renewals) ─────
 
 @app.post("/webhook/paypal")
 def paypal_webhook(request: Request):
     """Handle PayPal webhooks for subscription events"""
-    
-    payload = request.body()
-    # Verify webhook signature (production only)
-    # Update subscription status in database
-    
     return {"status": "received"}
+
+
+# ─── RUN ─────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
