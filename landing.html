@@ -48,12 +48,6 @@
             100% { transform: scale(1); opacity: 1; }
         }
         
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-            20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-        
         @keyframes gradient-shift {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
@@ -858,6 +852,101 @@
             box-shadow: 0 5px 15px rgba(0, 212, 170, 0.2);
         }
         
+        /* PAYMENT MODAL */
+        #paymentModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background: #12121a;
+            border: 1px solid #2a2a35;
+            border-radius: 20px;
+            padding: 48px 40px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+            animation: bounce-in 0.4s ease-out;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.3s;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+        }
+        
+        .modal-close:hover {
+            color: #fff;
+            background: #1a1a24;
+        }
+        
+        .modal-icon {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .modal-content h3 {
+            color: #fff;
+            font-size: 1.4rem;
+            margin-bottom: 12px;
+        }
+        
+        .modal-content p {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 28px;
+            line-height: 1.6;
+        }
+        
+        .modal-btn {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #00d4aa, #00a8e8);
+            color: #0a0a0f;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 15px;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .modal-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 170, 0.3);
+        }
+        
+        .modal-note {
+            color: #555;
+            font-size: 12px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+        }
+        
         /* MOBILE */
         @media (max-width: 768px) {
             .hero h1 { font-size: 2.2rem; }
@@ -866,12 +955,25 @@
             .nav-links { display: none; }
             .btn-group { flex-direction: column; }
             .btn { text-align: center; justify-content: center; }
+            .modal-content { padding: 36px 24px; }
         }
     </style>
 </head>
 <body>
 
     <div class="matrix-bg"></div>
+
+    <!-- PAYMENT MODAL -->
+    <div id="paymentModal" onclick="if(event.target === this) closeModal()">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">×</button>
+            <div class="modal-icon">🔒</div>
+            <h3>Payment Coming Soon</h3>
+            <p>We're finalizing Stripe & PayPal integration for Kenya. Get early access by emailing me directly — I'll set you up manually within 24 hours.</p>
+            <a href="mailto:epicedge055@gmail.com?subject=ProofLayer Pro Early Access" class="modal-btn">Email for Early Access</a>
+            <p class="modal-note">Co-op Bank: 25470576043401 · PayPal: epicedge055@gmail.com</p>
+        </div>
+    </div>
 
     <nav>
         <div class="container nav-inner">
@@ -907,7 +1009,7 @@
             <p class="hero-sub">So I built something that proves I typed it myself. Not by reading what I wrote — by watching how I type.</p>
             <p class="hero-note">Built on a slow laptop in Kenya. Deployed on Railway. Open source. No investors. Just code and frustration.</p>
             <div class="btn-group">
-                <a href="https://prooflayer-production-bc8a.up.railway.app/static/index.html" class="btn btn-main">
+                <a href="https://prooflayer.up.railway.app/static/index.html" class="btn btn-main">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
@@ -1040,12 +1142,12 @@
                 </div>
                 <div class="code-block">
                     <pre id="codeContent"><span class="comment">&lt;!-- Load the SDK from our server --&gt;</span>
-<span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="string">"https://prooflayer-production-bc8a.up.railway.app/static/prooflayer-sdk.js"</span><span class="tag">&gt;&lt;/script&gt;</span>
+<span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="string">"https://prooflayer.up.railway.app/static/prooflayer-sdk.js"</span><span class="tag">&gt;&lt;/script&gt;</span>
 
 <span class="tag">&lt;script&gt;</span>
 <span class="comment">// Initialize with your API key</span>
 <span class="keyword">const</span> <span class="func">proof</span> = <span class="keyword">new</span> <span class="func">ProofLayer</span>({
-    <span class="string">apiUrl</span>: <span class="string">'https://prooflayer-production-bc8a.up.railway.app'</span>,
+    <span class="string">apiUrl</span>: <span class="string">'https://prooflayer.up.railway.app'</span>,
     <span class="string">apiKey</span>: <span class="string">'your-key-here'</span>,
     <span class="string">onVerify</span>: <span class="keyword">function</span>(result) {
         <span class="keyword">if</span> (result.is_human > 0.7) {
@@ -1081,7 +1183,7 @@
                         <li>Community support (GitHub issues)</li>
                         <li>Perfect for personal projects, student clubs</li>
                     </ul>
-                    <a href="#" class="btn btn-ghost" style="width: 100%; text-align: center;" onclick="alert('Free tier coming soon. Email epicedge055@gmail.com for early access.'); return false;">Get API key</a>
+                    <a href="#" class="btn btn-ghost" style="width: 100%; text-align: center;" onclick="openModal(); return false;">Get API key</a>
                 </div>
                 
                 <div class="price-card popular">
@@ -1095,7 +1197,7 @@
                         <li>Email support (I reply within 24 hours)</li>
                         <li>Webhook notifications</li>
                     </ul>
-                    <a href="#" class="btn btn-main" style="width: 100%; text-align: center;" onclick="alert('Payment integration coming this week. Email epicedge055@gmail.com to get early access.'); return false;">Start trial</a>
+                    <a href="#" class="btn btn-main" style="width: 100%; text-align: center;" onclick="openModal(); return false;">Start trial</a>
                 </div>
                 
                 <div class="price-card">
@@ -1140,10 +1242,18 @@
     </footer>
 
     <script>
-        const API_URL = 'https://prooflayer-production-bc8a.up.railway.app';
+        const API_URL = 'https://prooflayer.up.railway.app';
         let sessionId = null;
         let keystrokes = [];
         let sessionStart = null;
+
+        function openModal() {
+            document.getElementById('paymentModal').style.display = 'flex';
+        }
+        
+        function closeModal() {
+            document.getElementById('paymentModal').style.display = 'none';
+        }
 
         async function initDemo() {
             try {
@@ -1251,7 +1361,6 @@
             });
         }
 
-        // Glitch effect on hover
         document.querySelector('.glitch-text').addEventListener('mouseenter', function() {
             this.style.animation = 'glitch 0.3s infinite';
         });
