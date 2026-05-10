@@ -414,3 +414,342 @@ def health():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    """
+PAYMENT MODULE — Add to main.py
+PayPal + Flutterwave integration
+"""
+
+import os
+from fastapi import FastAPI, HTTPException, Request
+from pydantic import BaseModel
+import requests
+import hashlib
+import time
+
+# ─── PAYPAL CONFIG ─────────────────────────────────────
+
+PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
+PAYPAL_SECRET = os.getenv("PAYPAL_SECRET", "")
+PAYPAL_API = "https://api-m.sandbox.paypal.com"  # sandbox for testing
+# Change to "https://api-m.paypal.com" for live
+
+# ─── FLUTTERWAVE CONFIG ─────────────────────────────
+
+FLW_SECRET_KEY = os.getenv("FLW_SECRET_KEY", "")
+FLW_API = "https://api.flutterwave.com/v3"
+
+# ─── PRICING PLANS ────────────────────────────────────
+
+PLANS = {
+    "starter": {"price": 0, "verifications": 1000, "name": "Starter"},
+    "pro": {"price": 49, "verifications": 10000, "name": "Pro"},
+    "enterprise": {"price": 499, "verifications": -1, "name": "Enterprise"}
+}
+
+# ─── DATABASE UPDATE ──────────────────────────────────
+
+def init_payments_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # Customers table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS customers (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE,
+            name TEXT,
+            plan TEXT DEFAULT 'starter',
+            api_key TEXT UNIQUE,
+            payment_method TEXT,
+            subscription_id TEXT,
+            created_at REAL,
+            verifications_used INTEGER DEFAULT 0,
+            verifications_limit INTEGER DEFAULT 1000,
+            active INTEGER DEFAULT 1
+        )
+    ''')
+    
+    # Payments table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS payments (
+            id TEXT PRIMARY KEY,
+            customer_id TEXT,
+            amount REAL,
+            currency TEXT,
+            status TEXT,
+            provider TEXT,
+            provider_ref TEXT,
+            created_at REAL
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+init_payments_db()
+
+# ─── MODELS ─────────────────────────────────────────
+
+class CreatePaymentRequest(BaseModel):
+    plan: str  # "pro" or "enterprise"
+    email: str
+    name: str
+    return_url: str
+    cancel_url: str
+
+class VerifyPaymentRequest(BaseModel):
+    order_id: str
+
+class CustomerResponse(BaseModel):
+    email: str
+    plan: str
+    api_key: str
+    verifications_used: int
+    verifications_limit: int
+
+# ─── API KEY GENERATION ──────────────────────────────
+
+def generate_api_key(email: str) -> str:
+    data = f"{email}{time.time()}{os.urandom(16)}"
+    return hashlib.sha256(data.encode()).hexdigest()[:32]
+
+# ─── PAYPAL ENDPOINTS ───────────────────────────────
+
+@app.post("/api/v1/payment/create")
+def create_paypal_payment(data: CreatePaymentRequest):
+    """Create PayPal checkout session"""
+    
+    if data.plan not in PLANS:
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    
+    plan = PLANS[data.plan]
+    
+    # Get PayPal access token
+    auth = requests.post(
+        f"{PAYPAL_API}/v1/oauth2/token",
+        headers={"Accept": "application/json", "Accept-Language": "en_US"},
+        auth=(PAYPAL_CLIENT_ID, PAYPAL_SECRET),
+        data={"grant_type": "client_credentials"}
+    )
+    
+    if auth.status_code != 200:
+        raise HTTPException(status_code=500, detail="PayPal auth failed")
+    
+    access_token = auth.json()["access_token"]
+    
+    # Create order
+    order = requests.post(
+        f"{PAYPAL_API}/v2/checkout/orders",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {access_token}"
+        },
+        json={
+            "intent": "CAPTURE",
+            "purchase_units": [{
+                "amount": {
+                    "currency_code": "USD",
+                    "value": str(plan["price"])
+                },
+                "description": f"ProofLayer {plan['name']} Plan"
+            }],
+            "application_context": {
+                "return_url": data.return_url,
+                "cancel_url": data.cancel_url,
+                "brand_name": "ProofLayer",
+                "landing_page": "BILLING"
+            }
+        }
+    )
+    
+    if order.status_code != 201:
+        raise HTTPException(status_code=500, detail="PayPal order creation failed")
+    
+    order_data = order.json()
+    
+    # Store pending customer
+    customer_id = hashlib.sha256(f"{data.email}{time.time()}".encode()).hexdigest()[:16]
+    api_key = generate_api_key(data.email)
+    
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        INSERT OR REPLACE INTO customers 
+        (id, email, name, plan, api_key, payment_method, subscription_id, created_at, verifications_limit, active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        customer_id, data.email, data.name, data.plan, api_key, 
+        "paypal_pending", order_data["id"], time.time(), plan["verifications"], 0
+    ))
+    conn.commit()
+    conn.close()
+    
+    # Find approval URL
+    approval_url = next(
+        (link["href"] for link in order_data["links"] if link["rel"] == "approve"),
+        None
+    )
+    
+    return {
+        "order_id": order_data["id"],
+        "approval_url": approval_url,
+        "status": "created",
+        "amount": plan["price"],
+        "plan": data.plan
+    }
+
+@app.post("/api/v1/payment/capture")
+def capture_paypal_payment(data: VerifyPaymentRequest):
+    """Capture payment after user approves"""
+    
+    # Get access token
+    auth = requests.post(
+        f"{PAYPAL_API}/v1/oauth2/token",
+        headers={"Accept": "application/json"},
+        auth=(PAYPAL_CLIENT_ID, PAYPAL_SECRET),
+        data={"grant_type": "client_credentials"}
+    )
+    
+    access_token = auth.json()["access_token"]
+    
+    # Capture the order
+    capture = requests.post(
+        f"{PAYPAL_API}/v2/checkout/orders/{data.order_id}/capture",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {access_token}"
+        }
+    )
+    
+    if capture.status_code != 201:
+        raise HTTPException(status_code=400, detail="Payment capture failed")
+    
+    capture_data = capture.json()
+    status = capture_data["status"]
+    
+    # Update customer
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    c.execute("SELECT id, plan, verifications_limit FROM customers WHERE subscription_id = ?", (data.order_id,))
+    row = c.fetchone()
+    
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    customer_id, plan, limit = row
+    
+    if status == "COMPLETED":
+        c.execute('''
+            UPDATE customers 
+            SET active = 1, payment_method = 'paypal'
+            WHERE id = ?
+        ''', (customer_id,))
+        
+        # Record payment
+        payment_id = hashlib.sha256(f"{data.order_id}{time.time()}".encode()).hexdigest()[:16]
+        amount = PLANS[plan]["price"]
+        
+        c.execute('''
+            INSERT INTO payments (id, customer_id, amount, currency, status, provider, provider_ref, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (payment_id, customer_id, amount, "USD", "completed", "paypal", data.order_id, time.time()))
+        
+        conn.commit()
+        conn.close()
+        
+        # Get API key
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT api_key FROM customers WHERE id = ?", (customer_id,))
+        api_key = c.fetchone()[0]
+        conn.close()
+        
+        return {
+            "status": "success",
+            "message": "Payment completed. Welcome to ProofLayer Pro!",
+            "api_key": api_key,
+            "plan": plan,
+            "dashboard_url": f"/dashboard?key={api_key}"
+        }
+    
+    conn.close()
+    raise HTTPException(status_code=400, detail=f"Payment status: {status}")
+
+# ─── CUSTOMER DASHBOARD ─────────────────────────────
+
+@app.get("/api/v1/customer/{api_key}")
+def get_customer(api_key: str):
+    """Get customer details by API key"""
+    
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        SELECT email, plan, verifications_used, verifications_limit, active, created_at
+        FROM customers WHERE api_key = ?
+    ''', (api_key,))
+    row = c.fetchone()
+    conn.close()
+    
+    if not row:
+        raise HTTPException(status_code=404, detail="Invalid API key")
+    
+    return {
+        "email": row[0],
+        "plan": row[1],
+        "verifications_used": row[2],
+        "verifications_limit": row[3],
+        "active": bool(row[4]),
+        "created_at": datetime.fromtimestamp(row[5]).isoformat() if row[5] else None
+    }
+
+# ─── USAGE TRACKING (Add to your keystroke endpoint) ─
+
+def track_verification(api_key: str) -> bool:
+    """Check if customer has verifications left"""
+    
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    c.execute('''
+        SELECT verifications_used, verifications_limit, active, plan
+        FROM customers WHERE api_key = ?
+    ''', (api_key,))
+    row = c.fetchone()
+    
+    if not row:
+        conn.close()
+        return False  # Invalid key
+    
+    used, limit, active, plan = row
+    
+    if not active:
+        conn.close()
+        return False  # Not paid
+    
+    if plan != "enterprise" and used >= limit:
+        conn.close()
+        return False  # Limit reached
+    
+    # Increment usage
+    c.execute('''
+        UPDATE customers SET verifications_used = verifications_used + 1
+        WHERE api_key = ?
+    ''', (api_key,))
+    
+    conn.commit()
+    conn.close()
+    return True
+
+# ─── PAYPAL WEBHOOK (for subscription renewals) ─────
+
+@app.post("/webhook/paypal")
+def paypal_webhook(request: Request):
+    """Handle PayPal webhooks for subscription events"""
+    
+    payload = request.body()
+    # Verify webhook signature (production only)
+    # Update subscription status in database
+    
+    return {"status": "received"}
