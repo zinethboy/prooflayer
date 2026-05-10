@@ -42,7 +42,7 @@ app.mount("/static", StaticFiles(directory="."), name="static")
 
 @app.get("/")
 def read_root():
-    return FileResponse("index.html")
+    return FileResponse("landing.html")
 
 
 # ─── DATABASE ─────────────────────────────────────────────────────────
