@@ -3,7 +3,7 @@
  * Embed human verification in any web app
  * 
  * Usage:
- *   const proof = new ProofLayer({ apiKey: 'your_key', apiUrl: 'http://localhost:8000' });
+ *   const proof = new ProofLayer({ apiKey: 'your_key', apiUrl: 'https://prooflayer.up.railway.app' });
  *   proof.observe(document.getElementById('myInput'));
  *   
  *   // Later...
@@ -16,7 +16,7 @@
 class ProofLayer {
     constructor(options = {}) {
         this.apiKey = options.apiKey || '';
-        this.apiUrl = options.apiUrl || 'http://localhost:8000';
+        this.apiUrl = options.apiUrl || 'https://prooflayer.up.railway.app';
         this.sessionId = null;
         this.keystrokes = [];
         this.sessionStart = null;
