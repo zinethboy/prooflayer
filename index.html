@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProofLayer — Verify You're Human</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 700px;
+            width: 100%;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #00f5d4, #00bbf9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            color: #888;
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+        
+        .card {
+            background: #12121a;
+            border: 1px solid #1e1e2e;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 16px;
+            border-radius: 12px;
+            background: #1a1a2e;
+            border: 1px solid #2a2a3e;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+            transition: all 0.3s;
+        }
+        
+        .status-dot.recording { background: #ff006e; animation: pulse 1s infinite; }
+        .status-dot.verifying { background: #fee440; animation: pulse 0.5s infinite; }
+        .status-dot.human { background: #00f5d4; }
+        .status-dot.ai { background: #ff006e; }
+        .status-dot.unknown { background: #888; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            background: #0a0a0f;
+            border: 1px solid #2a2a3e;
+            border-radius: 12px;
+            padding: 16px;
+            color: #e0e0e0;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #00f5d4;
+        }
+        
+        textarea::placeholder { color: #555; }
+        
+        .buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: none;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00f5d4, #00bbf9);
+            color: #0a0a0f;
+        }
+        
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0, 245, 212, 0.3); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .btn-secondary {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            border: 1px solid #2a2a3e;
+        }
+        
+        .btn-secondary:hover { background: #252540; }
+        
+        .result {
+            display: none;
+            margin-top: 24px;
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid;
+        }
+        
+        .result.show { display: block; }
+        
+        .result.human {
+            background: rgba(0, 245, 212, 0.05);
+            border-color: #00f5d4;
+        }
+        
+        .result.ai {
+            background: rgba(255, 0, 110, 0.05);
+            border-color: #ff006e;
+        }
+        
+        .result.unknown {
+            background: rgba(136, 136, 136, 0.05);
+            border-color: #888;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        
+        .badge.human { background: rgba(0, 245, 212, 0.15); color: #00f5d4; }
+        .badge.ai { background: rgba(255, 0, 110, 0.15); color: #ff006e; }
+        .badge.unknown { background: rgba(136, 136, 136, 0.15); color: #888; }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+        
+        .metric {
+            background: #0a0a0f;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        
+        .metric-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .metric-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #e0e0e0;
+        }
+        
+        .proof-link {
+            margin-top: 16px;
+            padding: 12px;
+            background: #0a0a0f;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            color: #00bbf9;
+        }
+        
+        .instructions {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .instructions code {
+            background: #1a1a2e;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #00f5d4;
+            font-size: 13px;
+        }
+        
+        .demo-text {
+            color: #555;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        
+        .paste-warning {
+            display: none;
+            color: #ff006e;
+            font-size: 13px;
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(255, 0, 110, 0.1);
+            border-radius: 6px;
+        }
+        
+        .paste-warning.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ProofLayer</h1>
+        <p class="subtitle">Prove you wrote this. Not AI. Not a paste.</p>
+        
+        <div class="card">
+            <div class="status" id="statusBar">
+                <div class="status-dot unknown" id="statusDot"></div>
+                <span id="statusText">Ready — start typing to capture keystrokes</span>
+            </div>
+            
+            <div class="instructions">
+                Type the paragraph below <strong>naturally</strong>. Don't copy-paste. 
+                We analyze your typing rhythm to verify you're human.
+                <div class="demo-text">
+                    "The quick brown fox jumps over the lazy dog. Innovation distinguishes between a leader and a follower. Stay hungry, stay foolish."
+                </div>
+            </div>
+            
+            <textarea 
+                id="typingArea" 
+                placeholder="Start typing here..."
+                spellcheck="false"
+            ></textarea>
+            
+            <div class="paste-warning" id="pasteWarning">
+                ⚠️ Paste detected! For accurate verification, please type manually.
+            </div>
+            
+            <div class="buttons">
+                <button class="btn-primary" id="verifyBtn" onclick="verify()">
+                    Verify Humanity
+                </button>
+                <button class="btn-secondary" onclick="reset()">
+                    Reset
+                </button>
+                <button class="btn-secondary" onclick="simulateAI()">
+                    Simulate AI Paste
+                </button>
+            </div>
+            
+            <div class="result unknown" id="result">
+                <div class="badge" id="badge">Verifying...</div>
+                <div id="resultText"></div>
+                <div class="metrics" id="metrics"></div>
+                <div class="proof-link" id="proofLink"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let sessionId = null;
+        let keystrokes = [];
+        let sessionStart = null;
+        let lastKeyTime = null;
+        let pasteDetected = false;
+
+        // ─── INIT ─────────────────────────────────────────────
+
+        async function initSession() {
+            try {
+                const res = await fetch(`${API_URL}/api/v1/session/start`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const data = await res.json();
+                sessionId = data.session_id;
+                sessionStart = Date.now();
+                keystrokes = [];
+                pasteDetected = false;
+                updateStatus('ready');
+            } catch (e) {
+                console.error('Failed to init session:', e);
+                updateStatus('error');
+            }
+        }
+
+        // ─── KEYSTROKE CAPTURE ─────────────────────────────────
+
+        const textarea = document.getElementById('typingArea');
+        const pasteWarning = document.getElementById('pasteWarning');
+
+        textarea.addEventListener('keydown', (e) => {
+            const now = Date.now() - sessionStart;
+            keystrokes.push({
+                key: e.key,
+                timestamp: now,
+                type: 'down'
+            });
+            lastKeyTime = now;
+            updateStatus('recording');
+        });
+
+        textarea.addEventListener('keyup', (e) => {
+            const now = Date.now() - sessionStart;
+            keystrokes.push({
+                key: e.key,
+                timestamp: now,
+                type: 'up'
+            });
+        });
+
+        textarea.addEventListener('paste', (e) => {
+            pasteDetected = true;
+            pasteWarning.classList.add('show');
+            // Still record the paste, but flag it
+            const now = Date.now() - sessionStart;
+            keystrokes.push({
+                key: 'Paste',
+                timestamp: now,
+                type: 'paste'
+            });
+        });
+
+        // ─── STATUS ────────────────────────────────────────────
+
+        function updateStatus(state) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
+            dot.className = 'status-dot ' + state;
+            
+            const messages = {
+                ready: 'Ready — start typing to capture keystrokes',
+                recording: 'Recording keystroke dynamics...',
+                verifying: 'Analyzing typing pattern...',
+                human: 'Verified Human ✓',
+                ai: 'AI-Generated or Pasted Content Detected',
+                unknown: 'Ready — start typing to capture keystrokes',
+                error: 'Connection error — check backend'
+            };
+            text.textContent = messages[state] || messages.unknown;
+        }
+
+        // ─── VERIFY ────────────────────────────────────────────
+
+        async function verify() {
+            if (!sessionId) {
+                alert('Session not initialized. Refresh the page.');
+                return;
+            }
+            
+            const text = textarea.value.trim();
+            if (text.length < 20) {
+                alert('Please type at least 20 characters for accurate analysis.');
+                return;
+            }
+            
+            updateStatus('verifying');
+            document.getElementById('verifyBtn').disabled = true;
+            
+            try {
+                const res = await fetch(`${API_URL}/api/v1/session/${sessionId}/keystrokes`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        text: text,
+                        events: keystrokes
+                    })
+                });
+                
+                const result = await res.json();
+                showResult(result);
+            } catch (e) {
+                console.error('Verify failed:', e);
+                updateStatus('error');
+            } finally {
+                document.getElementById('verifyBtn').disabled = false;
+            }
+        }
+
+        // ─── SHOW RESULT ───────────────────────────────────────
+
+        function showResult(result) {
+            const resultDiv = document.getElementById('result');
+            const badge = document.getElementById('badge');
+            const resultText = document.getElementById('resultText');
+            const metricsDiv = document.getElementById('metrics');
+            const proofLink = document.getElementById('proofLink');
+            
+            const isHuman = result.is_human > 0.5;
+            const confidence = result.confidence;
+            
+            // Update status
+            updateStatus(isHuman ? 'human' : 'ai');
+            
+            // Show result card
+            resultDiv.className = 'result show ' + (isHuman ? 'human' : 'ai');
+            
+            // Badge
+            badge.className = 'badge ' + (isHuman ? 'human' : 'ai');
+            badge.innerHTML = isHuman 
+                ? '✓ Verified Human — ' + confidence.toUpperCase() + ' CONFIDENCE'
+                : '✗ Likely AI or Pasted — ' + confidence.toUpperCase() + ' CONFIDENCE';
+            
+            // Result text
+            resultText.innerHTML = isHuman
+                ? `<p>Your typing pattern shows natural human variation: pauses, errors, inconsistent rhythm. Score: <strong>${(result.is_human * 100).toFixed(1)}%</strong></p>`
+                : `<p>Your input lacks human typing signatures. Possible paste or AI generation. Score: <strong>${(result.is_human * 100).toFixed(1)}%</strong></p>`;
+            
+            // Metrics (we'll fetch session details)
+            showMetrics(result);
+            
+            // Proof link
+            proofLink.innerHTML = `
+                <strong>Proof Hash:</strong> ${result.proof_hash}<br>
+                <strong>Verify:</strong> <a href="${API_URL}/api/v1/verify/${result.proof_hash}" target="_blank" style="color:#00bbf9">${API_URL}/api/v1/verify/${result.proof_hash}</a>
+            `;
+        }
+
+        function showMetrics(result) {
+            const metricsDiv = document.getElementById('metrics');
+            metricsDiv.innerHTML = `
+                <div class="metric">
+                    <div class="metric-label">Human Score</div>
+                    <div class="metric-value">${(result.is_human * 100).toFixed(1)}%</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Confidence</div>
+                    <div class="metric-value">${result.confidence.toUpperCase()}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Keystrokes</div>
+                    <div class="metric-value">${keystrokes.length}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Text Length</div>
+                    <div class="metric-value">${textarea.value.length}</div>
+                </div>
+            `;
+        }
+
+        // ─── SIMULATE AI PASTE ─────────────────────────────────
+
+        function simulateAI() {
+            const aiText = "The quick brown fox jumps over the lazy dog. Innovation distinguishes between a leader and a follower. Stay hungry, stay foolish.";
+            textarea.value = aiText;
+            
+            // Simulate instant paste keystrokes (no human variation)
+            keystrokes = [];
+            const now = Date.now();
+            let t = 0;
+            
+            for (let i = 0; i < aiText.length; i++) {
+                // All keys pressed at machine speed: 5ms intervals
+                keystrokes.push({key: aiText[i], timestamp: t, type: 'down'});
+                keystrokes.push({key: aiText[i], timestamp: t + 2, type: 'up'});
+                t += 5; // Super consistent, super fast
+            }
+            
+            pasteWarning.classList.add('show');
+            pasteWarning.textContent = '⚠️ Simulating AI paste — all keys at 5ms intervals, zero errors';
+            updateStatus('recording');
+        }
+
+        // ─── RESET ─────────────────────────────────────────────
+
+        function reset() {
+            textarea.value = '';
+            keystrokes = [];
+            pasteDetected = false;
+            pasteWarning.classList.remove('show');
+            pasteWarning.textContent = '⚠️ Paste detected! For accurate verification, please type manually.';
+            document.getElementById('result').classList.remove('show');
+            initSession();
+        }
+
+        // ─── START ─────────────────────────────────────────────
+
+        initSession();
+    </script>
+</body>
+</html>

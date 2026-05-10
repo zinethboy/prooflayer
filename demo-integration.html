@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ProofLayer Integration Demo</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        textarea { width: 100%; height: 150px; padding: 10px; font-size: 16px; }
+        #badge { margin-top: 10px; }
+        .verified { color: green; font-weight: bold; }
+        .unverified { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Job Application — Type Your Cover Letter</h2>
+    <p>We verify that all applications are written by real humans.</p>
+    
+    <textarea id="coverLetter" placeholder="Type your cover letter here..."></textarea>
+    <div id="badge"></div>
+    <button id="submitBtn" disabled>Submit Application</button>
+
+    <!-- STEP 1: Load the SDK -->
+    <script src="https://YOUR-API-URL.com/static/prooflayer-sdk.js"></script>
+    
+    <script>
+        // STEP 2: Initialize with your API key
+        const proof = new ProofLayer({
+            apiUrl: 'https://YOUR-API-URL.com',
+            apiKey: 'your-company-api-key',
+            
+            // STEP 3: Handle verification result
+            onVerify: (result) => {
+                const badge = document.getElementById('badge');
+                const btn = document.getElementById('submitBtn');
+                
+                if (result.is_human > 0.7) {
+                    badge.innerHTML = '<span class="verified">✓ Verified Human</span>';
+                    btn.disabled = false;
+                } else {
+                    badge.innerHTML = '<span class="unverified">✗ Please type manually</span>';
+                    btn.disabled = true;
+                }
+            }
+        });
+
+        // STEP 4: Observe the input
+        proof.observe(document.getElementById('coverLetter'), {
+            minLength: 100,
+            autoVerify: true  // Verifies when user clicks away
+        });
+    </script>
+</body>
+</html>
