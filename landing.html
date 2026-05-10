@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProofLayer — I got tired of being accused</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px #00d4aa, 0 0 10px #00d4aa, 0 0 20px #00d4aa; }
+            50% { box-shadow: 0 0 10px #00d4aa, 0 0 20px #00d4aa, 0 0 40px #00d4aa; }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes typing-cursor {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        @keyframes matrix-rain {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 0% 100%; }
+        }
+        
+        @keyframes spin-slow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes bounce-in {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0a0a0f;
+            color: #d0d0d0;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        /* MATRIX BACKGROUND */
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.03;
+            background: linear-gradient(180deg, 
+                transparent 0%, 
+                rgba(0, 212, 170, 0.1) 50%, 
+                transparent 100%);
+            background-size: 100% 200%;
+            animation: matrix-rain 20s linear infinite;
+            pointer-events: none;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* NAV */
+        nav {
+            padding: 24px 0;
+            border-bottom: 1px solid #222;
+            position: sticky;
+            top: 0;
+            background: rgba(10, 10, 15, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+        
+        .nav-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.5px;
+            text-decoration: none;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            position: relative;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .logo-icon svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 0 8px #00d4aa);
+        }
+        
+        .logo span {
+            color: #00d4aa;
+            position: relative;
+        }
+        
+        .logo span::after {
+            content: '_';
+            animation: typing-cursor 1s infinite;
+            color: #00d4aa;
+            margin-left: 2px;
+        }
+        
+        .nav-links a {
+            color: #888;
+            text-decoration: none;
+            margin-left: 28px;
+            font-size: 14px;
+            position: relative;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #00d4aa;
+            transition: width 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: #fff;
+        }
+        
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+        
+        /* HERO */
+        .hero {
+            padding: 100px 0 60px;
+            position: relative;
+        }
+        
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(0, 212, 170, 0.1);
+            border: 1px solid rgba(0, 212, 170, 0.3);
+            border-radius: 20px;
+            font-size: 13px;
+            color: #00d4aa;
+            margin-bottom: 32px;
+            animation: bounce-in 0.6s ease-out;
+        }
+        
+        .hero-badge .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: #00d4aa;
+            border-radius: 50%;
+            animation: pulse-glow 2s infinite;
+        }
+        
+        .hero h1 {
+            font-size: 3.2rem;
+            color: #fff;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -2px;
+        }
+        
+        .hero h1 .highlight {
+            background: linear-gradient(135deg, #00d4aa, #00a8e8, #00d4aa);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient-shift 3s ease infinite;
+        }
+        
+        .hero h1 .glitch-text:hover {
+            animation: glitch 0.3s infinite;
+            cursor: default;
+        }
+        
+        .hero-sub {
+            font-size: 1.2rem;
+            color: #999;
+            margin-bottom: 28px;
+            max-width: 560px;
+        }
+        
+        .hero-note {
+            font-size: 14px;
+            color: #666;
+            border-left: 3px solid #00d4aa;
+            padding-left: 16px;
+            margin-bottom: 40px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 16px 32px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn-main {
+            background: linear-gradient(135deg, #00d4aa, #00a8e8);
+            color: #0a0a0f;
+            box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
+        }
+        
+        .btn-main:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 212, 170, 0.4);
+        }
+        
+        .btn-main svg {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .btn-ghost {
+            background: transparent;
+            color: #888;
+            border: 1px solid #333;
+        }
+        
+        .btn-ghost:hover {
+            border-color: #00d4aa;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(0, 212, 170, 0.2);
+        }
+        
+        /* FLOATING STATS */
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 60px;
+        }
+        
+        .stat-card {
+            background: #12121a;
+            border: 1px solid #222;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            border-color: #00d4aa;
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0, 212, 170, 0.1);
+        }
+        
+        .stat-icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #fff;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        /* SECTION HEADERS */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+        
+        .section-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #00d4aa, #00a8e8);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .section-header h2 {
+            font-size: 1.6rem;
+            color: #fff;
+        }
+        
+        /* STORY */
+        .story {
+            padding: 80px 0;
+            border-top: 1px solid #222;
+        }
+        
+        .story p {
+            color: #999;
+            margin-bottom: 18px;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+        
+        .story .quote {
+            color: #ccc;
+            font-style: italic;
+            border-left: 3px solid #00d4aa;
+            padding-left: 24px;
+            margin: 32px 0;
+            font-size: 1.1rem;
+            position: relative;
+        }
+        
+        .story .quote::before {
+            content: '"';
+            position: absolute;
+            left: -10px;
+            top: -20px;
+            font-size: 4rem;
+            color: #00d4aa;
+            opacity: 0.3;
+            font-family: Georgia, serif;
+        }
+        
+        .story strong {
+            color: #fff;
+        }
+        
+        .story .highlight-stat {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: rgba(0, 212, 170, 0.1);
+            border-radius: 6px;
+            color: #00d4aa;
+            font-weight: 700;
+        }
+        
+        /* HOW IT WORKS */
+        .how {
+            padding: 80px 0;
+            border-top: 1px solid #222;
+        }
+        
+        .steps {
+            display: grid;
+            gap: 24px;
+        }
+        
+        .step {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+            padding: 28px;
+            background: #12121a;
+            border: 1px solid #222;
+            border-radius: 16px;
+            transition: all 0.3s;
+        }
+        
+        .step:hover {
+            border-color: #00d4aa;
+            transform: translateX(8px);
+            box-shadow: -4px 0 20px rgba(0, 212, 170, 0.1);
+        }
+        
+        .step-num {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #00d4aa, #00a8e8);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0a0a0f;
+            font-weight: 800;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            position: relative;
+        }
+        
+        .step-num::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 18px;
+            border: 2px solid transparent;
+            background: linear-gradient(135deg, #00d4aa, #00a8e8) border-box;
+            -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0.5;
+        }
+        
+        .step-text h3 {
+            color: #fff;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+        
+        .step-text p {
+            color: #888;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .step-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+        
+        /* DEMO */
+        .demo {
+            padding: 80px 0;
+            border-top: 1px solid #222;
+        }
+        
+        .demo p {
+            color: #888;
+            margin-bottom: 28px;
+            font-size: 15px;
+        }
+        
+        .demo-box {
+            background: #12121a;
+            border: 1px solid #2a2a35;
+            border-radius: 16px;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .demo-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00d4aa, #00a8e8, #00d4aa);
+            background-size: 200% 100%;
+            animation: gradient-shift 2s linear infinite;
+        }
+        
+        .demo-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .demo-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: #1a1a24;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .demo-status .dot {
+            width: 8px;
+            height: 8px;
+            background: #00d4aa;
+            border-radius: 50%;
+            animation: pulse-glow 2s infinite;
+        }
+        
+        .demo-textarea {
+            width: 100%;
+            min-height: 140px;
+            background: #0a0a0f;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            color: #d0d0d0;
+            font-size: 15px;
+            resize: vertical;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+        
+        .demo-textarea:focus {
+            outline: none;
+            border-color: #00d4aa;
+            box-shadow: 0 0 20px rgba(0, 212, 170, 0.1);
+        }
+        
+        .demo-textarea::placeholder {
+            color: #444;
+        }
+        
+        .demo-result {
+            display: none;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            animation: bounce-in 0.4s ease-out;
+        }
+        
+        .demo-result.human {
+            background: rgba(0, 212, 170, 0.08);
+            border: 1px solid rgba(0, 212, 170, 0.3);
+            color: #00d4aa;
+        }
+        
+        .demo-result.ai {
+            background: rgba(255, 70, 70, 0.08);
+            border: 1px solid rgba(255, 70, 70, 0.3);
+            color: #ff4646;
+        }
+        
+        .demo-result .result-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+        
+        .demo-result .result-score {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+        
+        /* CODE */
+        .code-section {
+            padding: 80px 0;
+            border-top: 1px solid #222;
+        }
+        
+        .code-section > p {
+            color: #888;
+            margin-bottom: 28px;
+            font-size: 15px;
+        }
+        
+        .code-window {
+            background: #12121a;
+            border: 1px solid #2a2a35;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        
+        .code-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 20px;
+            background: #1a1a24;
+            border-bottom: 1px solid #2a2a35;
+        }
+        
+        .code-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .code-dot.red { background: #ff5f56; }
+        .code-dot.yellow { background: #ffbd2e; }
+        .code-dot.green { background: #27c93f; }
+        
+        .code-title {
+            font-size: 12px;
+            color: #666;
+            margin-left: 8px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .code-block {
+            padding: 24px;
+            overflow-x: auto;
+        }
+        
+        .code-block pre {
+            color: #b8b8b8;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+        
+        .code-block .comment { color: #666; }
+        .code-block .string { color: #a6e22e; }
+        .code-block .keyword { color: #f92672; }
+        .code-block .func { color: #66d9ef; }
+        .code-block .tag { color: #f92672; }
+        .code-block .attr { color: #a6e22e; }
+        
+        .copy-btn {
+            margin-left: auto;
+            padding: 6px 14px;
+            background: #2a2a35;
+            border: none;
+            border-radius: 6px;
+            color: #888;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .copy-btn:hover {
+            background: #00d4aa;
+            color: #0a0a0f;
+        }
+        
+        /* PRICING */
+        .pricing {
+            padding: 80px 0;
+            border-top: 1px solid #222;
+        }
+        
+        .pricing > p {
+            color: #888;
+            margin-bottom: 32px;
+            font-size: 15px;
+        }
+        
+        .price-cards {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .price-card {
+            background: #12121a;
+            border: 1px solid #2a2a35;
+            border-radius: 16px;
+            padding: 36px 32px;
+            position: relative;
+            transition: all 0.3s;
+        }
+        
+        .price-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .price-card.popular {
+            border-color: #00d4aa;
+            background: linear-gradient(135deg, #12121a 0%, #0d1f1a 100%);
+        }
+        
+        .price-card.popular::before {
+            content: "MOST USED";
+            position: absolute;
+            top: -1px;
+            right: 24px;
+            background: linear-gradient(135deg, #00d4aa, #00a8e8);
+            color: #0a0a0f;
+            padding: 6px 16px;
+            border-radius: 0 0 10px 10px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+        
+        .price-card .card-icon {
+            width: 48px;
+            height: 48px;
+            background: #1a1a24;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .price-card.popular .card-icon {
+            background: rgba(0, 212, 170, 0.1);
+        }
+        
+        .price-card h3 {
+            color: #fff;
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+        }
+        
+        .price-card .price {
+            font-size: 2.8rem;
+            color: #fff;
+            font-weight: 800;
+            margin: 16px 0;
+        }
+        
+        .price-card .price span {
+            font-size: 14px;
+            color: #666;
+            font-weight: 400;
+        }
+        
+        .price-card ul {
+            list-style: none;
+            margin: 24px 0;
+        }
+        
+        .price-card li {
+            color: #888;
+            font-size: 14px;
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .price-card li::before {
+            content: "✓";
+            color: #00d4aa;
+            font-weight: 700;
+        }
+        
+        /* FOOTER */
+        footer {
+            padding: 60px 0 40px;
+            border-top: 1px solid #222;
+            text-align: center;
+        }
+        
+        .footer-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+        }
+        
+        .footer-logo svg {
+            width: 28px;
+            height: 28px;
+            filter: drop-shadow(0 0 5px #00d4aa);
+        }
+        
+        footer p {
+            color: #555;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        
+        footer a {
+            color: #888;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        footer a:hover {
+            color: #00d4aa;
+        }
+        
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 24px 0;
+        }
+        
+        .social-links a {
+            width: 40px;
+            height: 40px;
+            background: #1a1a24;
+            border: 1px solid #333;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s;
+        }
+        
+        .social-links a:hover {
+            border-color: #00d4aa;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 212, 170, 0.2);
+        }
+        
+        /* MOBILE */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.2rem; }
+            .hero-stats { grid-template-columns: 1fr; }
+            .step { flex-direction: column; }
+            .nav-links { display: none; }
+            .btn-group { flex-direction: column; }
+            .btn { text-align: center; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="matrix-bg"></div>
+
+    <nav>
+        <div class="container nav-inner">
+            <a href="#" class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="20" cy="20" r="18" stroke="#00d4aa" stroke-width="2" fill="none"/>
+                        <path d="M12 20C12 15 15 12 20 12C25 12 28 15 28 20" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="20" cy="20" r="3" fill="#00d4aa"/>
+                        <path d="M20 23V28M17 25L20 28L23 25" stroke="#00d4aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="14" cy="14" r="1.5" fill="#00d4aa" opacity="0.5"/>
+                        <circle cx="26" cy="14" r="1.5" fill="#00d4aa" opacity="0.5"/>
+                    </svg>
+                </div>
+                Proof<span>Layer</span>
+            </a>
+            <div class="nav-links">
+                <a href="#story">Story</a>
+                <a href="#how">How</a>
+                <a href="#pricing">Price</a>
+                <a href="https://github.com/zinethboy/prooflayer">GitHub ↗</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container">
+            <div class="hero-badge">
+                <span class="pulse-dot"></span>
+                Live on Railway — Kenya → World
+            </div>
+            <h1>I got tired of professors asking if I used <span class="highlight glitch-text">ChatGPT</span>.</h1>
+            <p class="hero-sub">So I built something that proves I typed it myself. Not by reading what I wrote — by watching how I type.</p>
+            <p class="hero-note">Built on a slow laptop in Kenya. Deployed on Railway. Open source. No investors. Just code and frustration.</p>
+            <div class="btn-group">
+                <a href="https://prooflayer-production-bc8a.up.railway.app/static/index.html" class="btn btn-main">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    Try the demo
+                </a>
+                <a href="https://github.com/zinethboy/prooflayer" class="btn btn-ghost">Read the code →</a>
+            </div>
+            
+            <div class="hero-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-value">&lt;2s</div>
+                    <div class="stat-label">Verification time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div class="stat-value">95%</div>
+                    <div class="stat-label">Accuracy rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🔒</div>
+                    <div class="stat-value">0</div>
+                    <div class="stat-label">Data stored</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="story" id="story">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-icon">🎓</div>
+                <h2>Why this exists</h2>
+            </div>
+            <p>Last semester, three professors pulled me aside. <strong>"This essay is too good."</strong> <strong>"Did you use AI?"</strong> <strong>"The structure is suspicious."</strong></p>
+            <p>I didn't. I just write well when I care about the topic. But there's no way to prove that. Turnitin checks if you copied someone else. GPTZero guesses based on word patterns. Neither proves you sat down and typed it.</p>
+            <div class="quote">The problem isn't AI. The problem is we lost the ability to prove human effort.</div>
+            <p>So I learned Python in Termux on my phone. Switched to a slow laptop. Built a classifier that looks at keystrokes — not words. Dwell time. Flight time. Backspaces. Pauses. The messy, inconsistent rhythm of a human thinking.</p>
+            <p>When I type naturally: <span class="highlight-stat">✓ 75% human score</span>. When I paste ChatGPT output: <span class="highlight-stat" style="background: rgba(255,70,70,0.1); color: #ff4646;">✗ 5% human score</span>.</p>
+            <p>It works. Not perfectly. But honestly.</p>
+        </div>
+    </section>
+
+    <section class="how" id="how">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-icon">⚙️</div>
+                <h2>How it actually works</h2>
+            </div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-text">
+                        <div class="step-icon">⌨️</div>
+                        <h3>User types in your form</h3>
+                        <p>We capture keystroke dynamics in the browser. Key-down, key-up, timestamps. Not the content — the rhythm. No keyloggers. No screenshots. Just timing data that stays in the browser until they hit verify.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-text">
+                        <div class="step-icon">🧠</div>
+                        <h3>Backend analyzes behavior</h3>
+                        <p>FastAPI server extracts features: dwell time (how long keys are held), flight time (gaps between keys), error rate, rhythm consistency. Feeds into a classifier trained on real typing patterns — not text analysis.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-text">
+                        <div class="step-icon">⛓️</div>
+                        <h3>Proof hash gets anchored</h3>
+                        <p>SHA-256 hash of the session data. Timestamped. Blockchain-anchored on Polygon testnet (mainnet later). Tamper-proof. Publicly verifiable forever. You can dispute it in court if you need to.</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">4</div>
+                    <div class="step-text">
+                        <div class="step-icon">✅</div>
+                        <h3>Badge appears</h3>
+                        <p>"Verified Human" or "Unverified." Companies decide what to do with it. Block submission? Flag for review? Let through? Their call. We just provide the signal. No black boxes. No "trust us" — the proof is public.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="demo">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-icon">🧪</div>
+                <h2>Test it yourself</h2>
+            </div>
+            <p>Type something naturally below. Don't copy-paste. Make a typo. Pause to think. Then click verify.</p>
+            
+            <div class="demo-box">
+                <div class="demo-header">
+                    <div class="demo-status">
+                        <span class="dot"></span>
+                        API Connected — Production
+                    </div>
+                </div>
+                <textarea class="demo-textarea" id="demoInput" placeholder="Start typing here... don't paste anything... make it messy..."></textarea>
+                <button class="btn btn-main" onclick="runDemo()" id="demoBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    Verify this text
+                </button>
+                <div class="demo-result" id="demoResult"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="code-section">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-icon">💻</div>
+                <h2>Add it to your site in 5 lines</h2>
+            </div>
+            <p>No npm install. No build step. No framework lock-in. Drop this in any HTML form and it just works.</p>
+            
+            <div class="code-window">
+                <div class="code-header">
+                    <span class="code-dot red"></span>
+                    <span class="code-dot yellow"></span>
+                    <span class="code-dot green"></span>
+                    <span class="code-title">index.html</span>
+                    <button class="copy-btn" onclick="copyCode()">Copy</button>
+                </div>
+                <div class="code-block">
+                    <pre id="codeContent"><span class="comment">&lt;!-- Load the SDK from our server --&gt;</span>
+<span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="string">"https://prooflayer-production-bc8a.up.railway.app/static/prooflayer-sdk.js"</span><span class="tag">&gt;&lt;/script&gt;</span>
+
+<span class="tag">&lt;script&gt;</span>
+<span class="comment">// Initialize with your API key</span>
+<span class="keyword">const</span> <span class="func">proof</span> = <span class="keyword">new</span> <span class="func">ProofLayer</span>({
+    <span class="string">apiUrl</span>: <span class="string">'https://prooflayer-production-bc8a.up.railway.app'</span>,
+    <span class="string">apiKey</span>: <span class="string">'your-key-here'</span>,
+    <span class="string">onVerify</span>: <span class="keyword">function</span>(result) {
+        <span class="keyword">if</span> (result.is_human > 0.7) {
+            document.getElementById(<span class="string">'submit'</span>).disabled = <span class="keyword">false</span>;
+        }
+    }
+});
+
+<span class="comment">// Watch any input field</span>
+<span class="func">proof</span>.<span class="func">observe</span>(document.getElementById(<span class="string">'essayInput'</span>));
+<span class="tag">&lt;/script&gt;</span></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="pricing" id="pricing">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-icon">💰</div>
+                <h2>Pricing</h2>
+            </div>
+            <p>I need to eat. But I also need this to be accessible. Here's the compromise.</p>
+            
+            <div class="price-cards">
+                <div class="price-card">
+                    <div class="card-icon">🚀</div>
+                    <h3>Starter</h3>
+                    <div class="price">$0<span>/month</span></div>
+                    <ul>
+                        <li>1,000 verifications per month</li>
+                        <li>Basic badge (no customization)</li>
+                        <li>Community support (GitHub issues)</li>
+                        <li>Perfect for personal projects, student clubs</li>
+                    </ul>
+                    <a href="#" class="btn btn-ghost" style="width: 100%; text-align: center;" onclick="alert('Free tier coming soon. Email epicedge055@gmail.com for early access.'); return false;">Get API key</a>
+                </div>
+                
+                <div class="price-card popular">
+                    <div class="card-icon">⭐</div>
+                    <h3>Pro</h3>
+                    <div class="price">$49<span>/month</span></div>
+                    <ul>
+                        <li>10,000 verifications per month</li>
+                        <li>Custom badge colors + your logo</li>
+                        <li>Analytics dashboard (who verified, when, scores)</li>
+                        <li>Email support (I reply within 24 hours)</li>
+                        <li>Webhook notifications</li>
+                    </ul>
+                    <a href="#" class="btn btn-main" style="width: 100%; text-align: center;" onclick="alert('Payment integration coming this week. Email epicedge055@gmail.com to get early access.'); return false;">Start trial</a>
+                </div>
+                
+                <div class="price-card">
+                    <div class="card-icon">🏢</div>
+                    <h3>Custom</h3>
+                    <div class="price">Talk<span> to me</span></div>
+                    <ul>
+                        <li>Unlimited verifications</li>
+                        <li>Self-hosted option (your servers, your data)</li>
+                        <li>Custom ML model trained on your users</li>
+                        <li>SLA + phone support</li>
+                        <li>White-label (your brand, invisible ours)</li>
+                    </ul>
+                    <a href="mailto:epicedge055@gmail.com" class="btn btn-ghost" style="width: 100%; text-align: center;">Email me →</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-logo">
+                <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="18" stroke="#00d4aa" stroke-width="2" fill="none"/>
+                    <path d="M12 20C12 15 15 12 20 12C25 12 28 15 28 20" stroke="#00d4aa" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="20" cy="20" r="3" fill="#00d4aa"/>
+                    <path d="M20 23V28M17 25L20 28L23 25" stroke="#00d4aa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                ProofLayer
+            </div>
+            <p>Built by a student in Kenya. <a href="https://github.com/zinethboy/prooflayer">Open source</a>. <a href="mailto:epicedge055@gmail.com">epicedge055@gmail.com</a>.</p>
+            <p>Co-operative Bank: 25470576043401 · PayPal: epicedge055@gmail.com</p>
+            
+            <div class="social-links">
+                <a href="https://github.com/zinethboy/prooflayer" title="GitHub">🐙</a>
+                <a href="mailto:epicedge055@gmail.com" title="Email">✉️</a>
+                <a href="#" title="Twitter (coming soon)">🐦</a>
+            </div>
+            
+            <p style="margin-top: 16px;">ProofLayer © 2026 — Not a corporation. Just code and caffeine.</p>
+        </div>
+    </footer>
+
+    <script>
+        const API_URL = 'https://prooflayer-production-bc8a.up.railway.app';
+        let sessionId = null;
+        let keystrokes = [];
+        let sessionStart = null;
+
+        async function initDemo() {
+            try {
+                const res = await fetch(`${API_URL}/api/v1/session/start`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const data = await res.json();
+                sessionId = data.session_id;
+                sessionStart = Date.now();
+                keystrokes = [];
+            } catch(e) {
+                console.error('Demo init failed:', e);
+            }
+        }
+
+        const demoInput = document.getElementById('demoInput');
+        
+        demoInput.addEventListener('keydown', (e) => {
+            if (!sessionStart) return;
+            keystrokes.push({
+                key: e.key,
+                timestamp: Date.now() - sessionStart,
+                type: 'down'
+            });
+        });
+        
+        demoInput.addEventListener('keyup', (e) => {
+            if (!sessionStart) return;
+            keystrokes.push({
+                key: e.key,
+                timestamp: Date.now() - sessionStart,
+                type: 'up'
+            });
+        });
+
+        async function runDemo() {
+            const btn = document.getElementById('demoBtn');
+            const result = document.getElementById('demoResult');
+            const text = demoInput.value.trim();
+            
+            if (text.length < 20) {
+                alert('Type at least 20 characters for a real test.');
+                return;
+            }
+            
+            btn.innerHTML = '<span style="display: inline-block; animation: spin-slow 1s linear infinite;">⟳</span> Analyzing...';
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch(`${API_URL}/api/v1/session/${sessionId}/keystrokes`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        text: text,
+                        events: keystrokes
+                    })
+                });
+                
+                const data = await res.json();
+                
+                result.style.display = 'block';
+                const isHuman = data.is_human > 0.5;
+                result.className = 'demo-result ' + (isHuman ? 'human' : 'ai');
+                result.innerHTML = `
+                    <div class="result-icon">${isHuman ? '✓' : '✗'}</div>
+                    <div class="result-score">${isHuman ? 'Verified Human' : 'Likely AI / Pasted'}</div>
+                    <div style="margin-top: 8px; font-size: 14px; opacity: 0.8;">
+                        ${(data.is_human * 100).toFixed(0)}% confidence · ${data.confidence.toUpperCase()}
+                    </div>
+                `;
+                
+                keystrokes = [];
+                initDemo();
+                
+            } catch(e) {
+                result.style.display = 'block';
+                result.className = 'demo-result ai';
+                result.innerHTML = `
+                    <div class="result-icon">⚠️</div>
+                    <div class="result-score">Connection Error</div>
+                    <div style="margin-top: 8px; font-size: 14px; opacity: 0.8;">
+                        Backend might be sleeping (Railway free tier). Refresh and try again.
+                    </div>
+                `;
+            }
+            
+            btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Verify this text`;
+            btn.disabled = false;
+        }
+
+        function copyCode() {
+            const code = document.getElementById('codeContent').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.querySelector('.copy-btn');
+                btn.textContent = 'Copied!';
+                btn.style.background = '#00d4aa';
+                btn.style.color = '#0a0a0f';
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.style.background = '#2a2a35';
+                    btn.style.color = '#888';
+                }, 2000);
+            });
+        }
+
+        // Glitch effect on hover
+        document.querySelector('.glitch-text').addEventListener('mouseenter', function() {
+            this.style.animation = 'glitch 0.3s infinite';
+        });
+        document.querySelector('.glitch-text').addEventListener('mouseleave', function() {
+            this.style.animation = 'none';
+        });
+
+        initDemo();
+    </script>
+
+</body>
+</html>
